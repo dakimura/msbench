@@ -1,12 +1,12 @@
 # -*- coding:utf-8 -*-
 
-import pymarketstore as pymkts
-import numpy as np
-import pandas as pd
 import time
-from random import randrange
-from datetime import timedelta
 from datetime import datetime
+from datetime import timedelta
+from random import randrange
+
+import numpy as np
+import pymarketstore as pymkts
 
 # dd/mm/yyyy hh:mm:ss format
 strtime_format = "%d/%m/%Y %H:%M:%S"

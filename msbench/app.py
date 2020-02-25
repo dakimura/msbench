@@ -1,23 +1,13 @@
 # -*- coding:utf-8 -*-
 
-import threading
-import sys
 import logging
-import time
 from argparse import ArgumentParser
+
 from msbench.client import MarketStoreClient
 
 # TODO: "4H" has some issues and variable length records cannot be written.
 # timeframes = ["1Sec", "10Sec", "30Sec", "1Min", "5Min", "15Min", "30Min", "1H", "2H", "4H", "1D", ]
 timeframes = ["1Sec", "10Sec", "30Sec", "1Min", "5Min", "15Min", "30Min", "1H", "2H", "1D", ]
-
-
-def thread_function(name, host: str):
-    logging.info("Thread %s: starting", name)
-    cli = MarketStoreClient(host=host)
-    elapsed = cli.random_write(symbol="DEBUG2", timeframe="1Sec", attribute_group="TICK", size=10, num=2)
-    logging.info("Thread %s: finishing", name)
-    return elapsed
 
 
 def get_option():
@@ -79,3 +69,7 @@ def main():
                                              attribute_group="TICK",
                                              size=size, num=query_num)
             print("{:7}{:.5f}ms/query".format(timeframes[k], elapsed_nanos / 10 ** 6 / query_num, ))
+
+
+if __name__ == "__main__":
+    main()
