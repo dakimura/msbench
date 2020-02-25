@@ -67,3 +67,8 @@ timeframe, data_size, elapsed_time_per_operation(write/query)
 
 Because the data file structure of marketstore depends on the timeframe (e.g. "1D", "10Sec", ...),
 This tool calculates the write/query performance for each of them.
+
+
+
+## Notes
+- tested by python3.7.2
