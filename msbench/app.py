@@ -1,13 +1,12 @@
 # -*- coding:utf-8 -*-
 
 import logging
+import sys
 from argparse import ArgumentParser
 
 from msbench.client import MarketStoreClient
-
-# TODO: "4H" has some issues and variable length records cannot be written.
-# timeframes = ["1Sec", "10Sec", "30Sec", "1Min", "5Min", "15Min", "30Min", "1H", "2H", "4H", "1D", ]
-timeframes = ["1Sec", "10Sec", "30Sec", "1Min", "5Min", "15Min", "30Min", "1H", "2H", "1D", ]
+from msbench.limit_from_start import *
+from msbench.timeframe import default_timeframes, is_valid_timeframe
 
 
 def get_option():
@@ -23,6 +22,13 @@ def get_option():
 
     argparser.add_argument('--query-num', type=int, default=10,
                            help="the number of trials to query. default is 10.")
+
+    argparser.add_argument('--timeframes', type=str, default=default_timeframes,
+                           help="comma-separated timeframes to benchmark. default is" + default_timeframes)
+
+    argparser.add_argument('--limit-from-start', type=str, default=default_limit_from_start,
+                           help="'true', 'false', or 'random'." +
+                                "when true, limit the query range in the ascending order.")
     # argparser.add_argument('-dlc', '--drawLearningCurve', type=bool,
     #                        default=False,
     #                        help='Whether to draw learning curve after learning')
@@ -44,6 +50,25 @@ def main():
     size = args.size
     write_num = args.write_num
     query_num = args.query_num
+
+    # validate timeframes
+    timeframes = args.timeframes.split(",")
+    if args.timeframes != default_timeframes:
+        for tf in timeframes:
+            if not is_valid_timeframe(tf):
+                print("invalid timeframe {}".format(tf))
+                sys.exit(1)
+        # deduplicate timeframes just in case that users specify same timeframes
+        timeframes = list(set(timeframes))
+
+    # validate limit_from_start
+    limit_from_start = args.limit_from_start
+    if limit_from_start != default_limit_from_start:
+        if not is_valid_limit_from_start(limit_from_start):
+            print("invalid limit-from-start {}".format(limit_from_start))
+            sys.exit(1)
+
+    limit_from_start_bool = get_limit_from_start(limit_from_start)
 
     print("timeframe, elapsed_time_per_operation(write/query)")
     for is_variable_length in [False, True]:
@@ -67,7 +92,7 @@ def main():
             elapsed_nanos = cli.random_query(symbol="{}{}".format(symbol_prefix, k),
                                              timeframe=timeframes[k],
                                              attribute_group="TICK",
-                                             size=size, num=query_num)
+                                             size=size, num=query_num, limit_from_start=limit_from_start_bool)
             print("{:7}{:.5f}ms/query".format(timeframes[k], elapsed_nanos / 10 ** 6 / query_num, ))
 
 

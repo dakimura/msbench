@@ -17,7 +17,8 @@ class MarketStoreClient:
         self.host = host
         self.cli = pymkts.Client(endpoint="http://{}/rpc".format(host))
 
-    def random_query(self, symbol: str, timeframe: str, attribute_group: str, size: int, num: int) -> int:
+    def random_query(self, symbol: str, timeframe: str, attribute_group: str, size: int, num: int,
+                     limit_from_start: bool) -> int:
         # TODO: add start, end, limit, limit_from_start options
 
         params = []
@@ -30,7 +31,7 @@ class MarketStoreClient:
                 start, end = end, start
 
             params.append(pymkts.Param(symbol, timeframe, attribute_group, start=start, end=end,
-                                       limit=randrange(size), limit_from_start=random_bool()))
+                                       limit=randrange(size), limit_from_start=limit_from_start))
 
         now = time.time_ns()
         for k in range(num):
@@ -105,13 +106,6 @@ def random_epoch(start: int, end: time) -> int:
 
 def random_int():
     return randrange(1000000000)
-
-
-def random_bool():
-    if randrange(2) == 1:
-        return True
-    else:
-        return False
 
 
 if __name__ == "__main__":
