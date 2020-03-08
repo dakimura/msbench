@@ -8,6 +8,9 @@ from random import randrange
 import numpy as np
 import pymarketstore as pymkts
 
+from msbench.limit import get_limit
+from msbench.time_range import get_range
+
 # dd/mm/yyyy hh:mm:ss format
 strtime_format = "%d/%m/%Y %H:%M:%S"
 
@@ -18,20 +21,17 @@ class MarketStoreClient:
         self.cli = pymkts.Client(endpoint="http://{}/rpc".format(host))
 
     def random_query(self, symbol: str, timeframe: str, attribute_group: str, size: int, num: int,
-                     limit_from_start: bool) -> int:
+                     limit_from_start: bool,
+                     time_range: str, limit: str) -> int:
         # TODO: add start, end, limit, limit_from_start options
+        if num <= 0:
+            return 0
 
         params = []
         for k in range(num):
-            start = random_date(start=datetime.strptime("01/01/2019 00:00:00", strtime_format),
-                                end=datetime.strptime("01/01/2020 00:00:00", strtime_format))
-            end = random_date(start=datetime.strptime("01/01/2019 00:00:00", strtime_format),
-                              end=datetime.strptime("01/01/2020 00:00:00", strtime_format))
-            if start > end:
-                start, end = end, start
-
+            start, end = get_range(time_range)
             params.append(pymkts.Param(symbol, timeframe, attribute_group, start=start, end=end,
-                                       limit=randrange(size), limit_from_start=limit_from_start))
+                                       limit=get_limit(limit, size), limit_from_start=limit_from_start))
 
         now = time.time_ns()
         for k in range(num):
@@ -59,6 +59,9 @@ class MarketStoreClient:
         :param is_variable_length:
         :return:
         """
+        if num <= 0:
+            return 0
+
         bucket = "{}/{}/{}".format(symbol, timeframe, attribute_group)
         data_type = [('Epoch', 'i8'), ('Bid', 'f4'), ('Ask', 'f4'), ('Nanoseconds', 'i4')]
 

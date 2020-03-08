@@ -11,7 +11,7 @@ with open('LICENSE', encoding="utf-8") as f:
 
 setup(
     name="msbench",
-    version="1.0.7",
+    version="1.0.8",
     description="Benchmarking tool for marketstore",
     author="Daito Akimura",
     install_requires=["pymarketstore", "argparse", ],
