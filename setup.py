@@ -14,7 +14,7 @@ setup(
     version="1.0.8",
     description="Benchmarking tool for marketstore",
     author="Daito Akimura",
-    install_requires=["pymarketstore", "argparse", ],
+    install_requires=["pip @ git+https://github.com/dakimura/pymarketstore.git@19bc96ffe712717f32306e27bb529a56c74e8f82#egg=pymarketstore", "argparse", ],
     packages=find_packages(exclude=('tests', 'docs')),
     entry_points={
         "console_scripts": [

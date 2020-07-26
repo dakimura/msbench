@@ -16,26 +16,35 @@ strtime_format = "%d/%m/%Y %H:%M:%S"
 
 
 class MarketStoreClient:
-    def __init__(self, host: str = "localhost:5993"):
+    def __init__(self, host: str = "localhost:5993", grpc_host: str = "localhost:5995"):
         self.host = host
         self.cli = pymkts.Client(endpoint="http://{}/rpc".format(host))
+        self.grpc_cli = pymkts.Client(endpoint=grpc_host, grpc=True)
 
     def random_query(self, symbol: str, timeframe: str, attribute_group: str, size: int, num: int,
                      limit_from_start: bool,
-                     time_range: str, limit: str) -> int:
-        # TODO: add start, end, limit, limit_from_start options
+                     time_range: str, limit: str, grpc: bool) -> int:
         if num <= 0:
             return 0
 
         params = []
         for k in range(num):
             start, end = get_range(time_range)
-            params.append(pymkts.Param(symbol, timeframe, attribute_group, start=start, end=end,
-                                       limit=get_limit(limit, size), limit_from_start=limit_from_start))
+            params.append(
+                pymkts.Param(symbols=symbol, timeframe=timeframe, attrgroup=attribute_group, start=start, end=end,
+                             limit=get_limit(limit, size), limit_from_start=limit_from_start))
+
+        c = self.get_client(grpc)
+
+        # first query takes a lot of time compared to the following queries.
+        # query once to remove the effect.
+        if num > 0:
+            c.query(params=params[0])
+
 
         now = time.time_ns()
         for k in range(num):
-            self.cli.query(params[k])
+            c.query(params=params[k])
             # reply = self.cli.query(params[k])
             # print(reply.first().df())
         elapsed = time.time_ns() - now
@@ -43,7 +52,7 @@ class MarketStoreClient:
         return elapsed
 
     def random_write(self, symbol: str, timeframe: str, attribute_group: str,
-                     size: int, num: int, is_variable_length: bool) -> int:
+                     size: int, num: int, is_variable_length: bool, record_size: int, grpc: bool) -> int:
 
         """
         write specified size of random records, specified times.
@@ -57,13 +66,24 @@ class MarketStoreClient:
         :param attribute_group:
         :param num:
         :param is_variable_length:
+        :param record_size:
+        :param grpc:
         :return:
         """
         if num <= 0:
             return 0
 
         bucket = "{}/{}/{}".format(symbol, timeframe, attribute_group)
-        data_type = [('Epoch', 'i8'), ('Bid', 'f4'), ('Ask', 'f4'), ('Nanoseconds', 'i4')]
+
+        # # 1 column(data type:i8) = 8 byte
+        # e.g. record_size = 32 = 4 * 8 byte
+        # Epoch (required): 8byte
+        # Nanoseconds (required for variable_length bucket): 4 byte, but will be padded to 8byte
+        # column0, column1, ... column((record_size/8)-2): record_size - 16 byte
+        # 8 + 8 + record_size - 16 = record_size byte
+        data_type = [('Epoch', 'i8')]
+        data_type.extend([('Column{}'.format(k), 'i8') for k in range(int(record_size / 8) - 2)])
+        data_type.append(('Nanoseconds', 'i4'))
 
         dates = []
         for k in range(size):
@@ -76,17 +96,35 @@ class MarketStoreClient:
 
         data = []
         for k in range(size):
-            data.append(np.array([(int(dates[k].timestamp()),
-                                   random_int(), random_int(), random_int())],
-                                 dtype=data_type))
+            recarray = [0 for t in range(int(record_size/8))]
+            recarray[0] = int(dates[k].timestamp())
+            for t in range(1, int(record_size/8)):
+                recarray[t] = random_int()
+            data.append(np.array([tuple(recarray)], dtype=data_type))
+
+        # data = np.array([(pd.Timestamp('2017-01-01 00:00').value / 10 ** 9, 10.0)],
+        #                 dtype=[('Epoch', 'i8'), ('Ask', 'f4')])
+        # cli.write(data, 'TEST/1Min/Tick')
+
+        c = self.get_client(grpc)
 
         now = time.time_ns()
         for k in range(num):
             for record in data:
-                self.cli.write(record, bucket, isvariablelength=is_variable_length)
+                c.write(record, bucket, isvariablelength=is_variable_length)
 
         elapsed = time.time_ns() - now
         return elapsed
+
+    def destroy(self, tbk: str, grpc: bool) -> int:
+        c = self.get_client(grpc)
+        return c.destroy(tbk=tbk)
+
+    def get_client(self, grpc: bool):
+        if grpc:
+            return self.grpc_cli
+        else:
+            return self.cli
 
 
 def random_date(start, end) -> datetime:
